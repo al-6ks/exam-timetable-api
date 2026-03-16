@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -102,6 +102,12 @@ def execute_query():
     finally:
         cursor.close()
         connection.close()
+
+
+@app.route('/')
+def home():
+    return send_file('index.html')
+
 
 if __name__ == '__main__':
     # Use environment port for deployment, default to 5000 for local testing
