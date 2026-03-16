@@ -13,7 +13,11 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 def get_db_connection():
     try:
 
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        conn = psycopg2.connect(
+    DATABASE_URL,
+    cursor_factory=RealDictCursor,
+    sslmode="require"
+    )
         return conn
     except Exception as e:
         print(f"Database Connection Error: {e}")
