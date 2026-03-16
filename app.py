@@ -5,15 +5,14 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-# Allows your frontend to communicate with this backend
+
 CORS(app)
 
-# YOUR NEON CONNECTION STRING
-DATABASE_URL = "postgresql://neondb_owner:npg_JPhUIp3gA4CD@ep-shiny-queen-alvsna5p.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
     try:
-        # RealDictCursor makes the results behave like a Python dictionary (key: value)
+
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         return conn
     except Exception as e:
@@ -91,8 +90,6 @@ def execute_query():
         columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
         
-        # THE FIX: Added .values() here. Instead of reading the keys (exam_id), 
-        # it now reads the actual values inside the row!
         json_rows = [[str(item) if item is not None else None for item in row.values()] for row in rows]
 
         return jsonify({
