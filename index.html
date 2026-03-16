@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Timetable Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        .loading-ring { border: 4px solid #f3f3f3; border-top: 4px solid #10b981; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #timetableTable thead, #queryResultsTable thead { position: sticky; top: 0; z-index: 10; }
+        .text-inter { font-family: 'Inter', sans-serif; }
+        #courseList { min-height: 100px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-inter min-h-screen p-4 sm:p-8">
+    <div class="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6 md:p-10 border border-green-100">
+        <h1 class="text-3xl font-bold text-green-700 mb-2">Personal Exam Timetable Builder</h1>
+        <p class="text-gray-600 mb-6 border-b pb-4">Input your courses one-by-one, then build your final, sorted timetable.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="md:col-span-1 bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Add Course</h2>
+                <label for="newCourseCode" class="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
+                <input type="text" id="newCourseCode" placeholder="INSY213" class="w-full p-2 border border-gray-300 rounded-lg mb-3 uppercase">
+                <label for="newClassGroup" class="block text-sm font-medium text-gray-700 mb-1">Class Group</label>
+                <input type="text" id="newClassGroup" placeholder="MAIN" class="w-full p-2 border border-gray-300 rounded-lg mb-4 uppercase">
+                <button onclick="addCourse()" class="w-full bg-green-500 text-white p-2 rounded-lg font-semibold hover:bg-green-600 shadow-md">+ Add to List</button>
+            </div>
+            <div class="md:col-span-2">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Courses (<span id="courseCount">0</span>)</h2>
+                <div id="courseList" class="max-h-48 overflow-y-auto p-3 bg-white border border-gray-200 rounded-lg shadow-inner mb-4"></div>
+                <button onclick="buildTimetable()" id="buildButton" disabled class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg disabled:opacity-50">Build Final Timetable</button>
+            </div>
+        </div>
+
+        <div id="messageBox" class="p-4 rounded-lg text-sm hidden mb-4"></div>
+        <div id="loadingIndicator" class="hidden flex justify-center items-center py-6">
+            <div class="loading-ring mr-3"></div><span class="text-green-600 font-medium">Processing request...</span>
+        </div>
+
+        <div class="mt-8 mb-4 border-b pb-2 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-700">Your Personal Exam Timetable</h2>
+            <button id="downloadBtn" onclick="downloadPDF()" class="hidden bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 transition flex items-center gap-2">Download PDF</button>
+        </div>
+
+        <div id="resultsTableContainer" class="max-h-[40vh] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-md mb-8">
+            <table id="timetableTable" class="min-w-full divide-y divide-gray-200 hidden">
+                <thead class="bg-gray-100"><tr id="tableHeader"></tr></thead>
+                <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
+            </table>
+            <p id="noDataMessage" class="p-4 text-center text-gray-500">Add courses and build your personal view.</p>
+        </div>
+
+        <div class="mt-12 pt-6 border-t border-gray-200">
+            <div class="p-6 bg-blue-50 rounded-xl border border-blue-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-blue-800">Master Exam Timetable</h2>
+                        <p class="text-blue-600 text-sm">View all scheduled exams in the database for cross-referencing.</p>
+                    </div>
+                    <button onclick="fetchMasterTimetable()" id="masterBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 shadow-md">Fetch All Exams</button>
+                </div>
+                <div id="queryResultsContainer" class="hidden">
+                    <div class="overflow-x-auto rounded-lg border border-blue-300 max-h-96 shadow-inner bg-white">
+                        <table id="queryResultsTable" class="min-w-full divide-y divide-blue-200"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:5000/api/';
+        let courseListArray = [];
+
+        function formatDate(str) {
+            if (!str || typeof str !== 'string') return str;
+            return str.includes(' 00:00:00') ? str.split(' ')[0] : str;
+        }
+
+        function updateCourseListUI() {
+            const listDiv = document.getElementById('courseList');
+            const countSpan = document.getElementById('courseCount');
+            const buildButton = document.getElementById('buildButton');
+            listDiv.innerHTML = ''; 
+            countSpan.textContent = courseListArray.length;
+            if (courseListArray.length === 0) {
+                listDiv.innerHTML = `<p class="text-gray-500 text-sm text-center py-4">Your courses will appear here.</p>`;
+                buildButton.disabled = true;
+                return;
+            }
+            buildButton.disabled = false;
+            courseListArray.forEach((course, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-3 border-b text-sm bg-white hover:bg-gray-50 transition';
+                item.innerHTML = `<div><span class="font-bold text-gray-800">${course.course_code}</span><br><span class="text-gray-500 text-xs">Group: ${course.class_group}</span></div>
+                    <button onclick="removeCourse(${index})" class="text-red-500 hover:text-red-700">Remove</button>`;
+                listDiv.appendChild(item);
+            });
+        }
+
+        function addCourse() {
+            const codeInput = document.getElementById('newCourseCode');
+            const groupInput = document.getElementById('newClassGroup');
+            const code = codeInput.value.trim().toUpperCase();
+            const group = groupInput.value.trim().toUpperCase();
+            if (!code || !group) return;
+            courseListArray.push({ course_code: code, class_group: group });
+            updateCourseListUI();
+            codeInput.value = ''; groupInput.value = ''; codeInput.focus();
+        }
+
+        function removeCourse(index) { courseListArray.splice(index, 1); updateCourseListUI(); }
+
+        function showMessage(msg, type) {
+            const box = document.getElementById('messageBox');
+            box.textContent = msg;
+            box.className = `p-4 rounded-lg text-sm mb-4 border ${type === 'success' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-red-100 border-red-300 text-red-800'}`;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 5000);
+        }
+
+        async function buildTimetable() {
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            try {
+                const res = await fetch(API_BASE_URL + 'timetable', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ courses: courseListArray })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    renderTimetable(data.timetable);
+                    showMessage(`Timetable built and sorted correctly.`, 'success');
+                } else { showMessage(data.message, "error"); }
+            } catch (e) { showMessage("Backend not reachable.", "error"); }
+            document.getElementById('loadingIndicator').classList.add('hidden');
+        }
+
+        function renderTimetable(timetable) {
+            const table = document.getElementById('timetableTable');
+            const body = document.getElementById('tableBody');
+            const head = document.getElementById('tableHeader');
+            body.innerHTML = ''; head.innerHTML = '';
+            
+            if (!timetable || timetable.length === 0) {
+                table.classList.add('hidden');
+                document.getElementById('downloadBtn').classList.add('hidden');
+                document.getElementById('noDataMessage').classList.remove('hidden');
+                return;
+            }
+            
+            table.classList.remove('hidden');
+            document.getElementById('downloadBtn').classList.remove('hidden');
+            document.getElementById('noDataMessage').classList.add('hidden');
+            
+            // FIX: Use lowercase columns to match PostgreSQL output
+            const cols = ["exam_date", "start_time", "end_time", "course_title", "course_code", "class_group", "venue"];
+            
+            cols.forEach(c => {
+                const th = document.createElement('th');
+                th.className = 'px-6 py-3 text-left text-xs font-bold uppercase text-gray-600 bg-gray-100';
+                th.textContent = c.replace(/_/g, ' '); // Removed the bug here
+                head.appendChild(th);
+            });
+            
+            timetable.forEach(row => {
+                const tr = document.createElement('tr');
+                cols.forEach(c => {
+                    const td = document.createElement('td');
+                    td.className = 'px-6 py-4 text-sm text-gray-800';
+                    td.textContent = (c === "exam_date") ? formatDate(row[c]) : row[c];
+                    tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+        }
+
+        async function fetchMasterTimetable() {
+            const btn = document.getElementById('masterBtn');
+            btn.disabled = true;
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            try {
+                const smartQuery = "SELECT * FROM exam_timetable ORDER BY exam_id ASC";
+                const res = await fetch(API_BASE_URL + 'query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: smartQuery })
+                });
+                const result = await res.json();
+                if (result.status === 'success') {
+                    let html = `<thead class="bg-blue-600 text-white"><tr>`;
+                    
+                    // FIX: Ensure system checks against lowercase column names
+                    const hiddenCols = ["exam_id", "date_val", "time_val"];
+                    
+                    result.columns.forEach(col => { 
+                        if(!hiddenCols.includes(col.toLowerCase())) {
+                            html += `<th class="px-4 py-2 text-left text-xs font-bold uppercase">${col.replace(/_/g, ' ')}</th>`; 
+                        }
+                    });
+                    html += `</tr></thead><tbody class="divide-y">`;
+                    
+                    result.data.forEach(row => {
+                        html += `<tr>`;
+                        row.forEach((cell, idx) => {
+                            const colName = result.columns[idx];
+                            if(!hiddenCols.includes(colName.toLowerCase())) {
+                                html += `<td class="px-4 py-3 text-sm text-gray-700">${(colName.toLowerCase() === "exam_date") ? formatDate(cell) : (cell || '-')}</td>`;
+                            }
+                        });
+                        html += `</tr>`;
+                    });
+                    document.getElementById('queryResultsTable').innerHTML = html + `</tbody>`;
+                    document.getElementById('queryResultsContainer').classList.remove('hidden');
+                }
+            } catch (e) { showMessage("Error fetching master list.", "error"); }
+            btn.disabled = false;
+            document.getElementById('loadingIndicator').classList.add('hidden');
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'pt');
+            doc.text("Personal Exam Timetable", 40, 40);
+            doc.autoTable({ html: '#timetableTable', startY: 60, theme: 'grid' });
+            doc.save('Exam_Timetable.pdf');
+        }
+    </script>
+</body>
+</html>
