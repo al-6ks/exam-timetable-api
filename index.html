@@ -17,7 +17,7 @@
 </head>
 <body class="bg-gray-50 text-inter min-h-screen p-4 sm:p-8">
     <div class="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6 md:p-10 border border-green-100">
-        <h1 class="text-3xl font-bold text-green-700 mb-2">Personal Exam Timetable Builder</h1>
+        <h1 class="text-3xl font-bold text-green-700 mb-2">UEAB Personal Exam Timetable Builder</h1>
         <p class="text-gray-600 mb-6 border-b pb-4">Input your courses one-by-one, then build your final, sorted timetable.</p>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -26,7 +26,16 @@
                 <label for="newCourseCode" class="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
                 <input type="text" id="newCourseCode" placeholder="INSY213" class="w-full p-2 border border-gray-300 rounded-lg mb-3 uppercase">
                 <label for="newClassGroup" class="block text-sm font-medium text-gray-700 mb-1">Class Group</label>
-                <input type="text" id="newClassGroup" placeholder="MAIN" class="w-full p-2 border border-gray-300 rounded-lg mb-4 uppercase">
+                
+                <select id="newClassGroup" class="w-full p-2 border border-gray-300 rounded-lg mb-4 uppercase bg-white">
+                    <option value="" disabled selected>Select Group...</option>
+                    <option value="MAIN">Main</option>
+                    <option value="GROUP A">Group A</option>
+                    <option value="GROUP B">Group B</option>
+                    <option value="INTER SESSION 1">Inter Session 1</option>
+                    <option value="INTER SESSION 2">Inter Session 2</option>
+                </select>
+
                 <button onclick="addCourse()" class="w-full bg-green-500 text-white p-2 rounded-lg font-semibold hover:bg-green-600 shadow-md">+ Add to List</button>
             </div>
             <div class="md:col-span-2">
@@ -145,28 +154,27 @@
             const body = document.getElementById('tableBody');
             const head = document.getElementById('tableHeader');
             body.innerHTML = ''; head.innerHTML = '';
-            
+
             if (!timetable || timetable.length === 0) {
                 table.classList.add('hidden');
                 document.getElementById('downloadBtn').classList.add('hidden');
                 document.getElementById('noDataMessage').classList.remove('hidden');
                 return;
             }
-            
+
             table.classList.remove('hidden');
             document.getElementById('downloadBtn').classList.remove('hidden');
             document.getElementById('noDataMessage').classList.add('hidden');
-            
-            // FIX: Use lowercase columns to match PostgreSQL output
+
             const cols = ["exam_date", "start_time", "end_time", "course_title", "course_code", "class_group", "venue"];
-            
+
             cols.forEach(c => {
                 const th = document.createElement('th');
                 th.className = 'px-6 py-3 text-left text-xs font-bold uppercase text-gray-600 bg-gray-100';
-                th.textContent = c.replace(/_/g, ' '); // Removed the bug here
+                th.textContent = c.replace(/_/g, ' '); 
                 head.appendChild(th);
             });
-            
+
             timetable.forEach(row => {
                 const tr = document.createElement('tr');
                 cols.forEach(c => {
@@ -193,17 +201,16 @@
                 const result = await res.json();
                 if (result.status === 'success') {
                     let html = `<thead class="bg-blue-600 text-white"><tr>`;
-                    
-                    // FIX: Ensure system checks against lowercase column names
+
                     const hiddenCols = ["exam_id", "date_val", "time_val"];
-                    
+
                     result.columns.forEach(col => { 
                         if(!hiddenCols.includes(col.toLowerCase())) {
                             html += `<th class="px-4 py-2 text-left text-xs font-bold uppercase">${col.replace(/_/g, ' ')}</th>`; 
                         }
                     });
                     html += `</tr></thead><tbody class="divide-y">`;
-                    
+
                     result.data.forEach(row => {
                         html += `<tr>`;
                         row.forEach((cell, idx) => {
