@@ -12,7 +12,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
     try:
-        # Added connect_timeout so it doesn't hang the whole site if DB is slow
+       
         conn = psycopg2.connect(
             DATABASE_URL,
             cursor_factory=RealDictCursor,
@@ -56,8 +56,7 @@ def build_timetable():
 
         # Sort by exam_id (handling cases where id might be string or int)
         all_results.sort(key=lambda x: int(x['exam_id']) if x['exam_id'] is not None else 0)
-
-        # Convert date and time objects to strings so JSON can handle them
+
         for res in all_results:
             for key, value in res.items():
                 if hasattr(value, 'isoformat'): # Handles Date, Time, and Datetime objects
