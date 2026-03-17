@@ -25,8 +25,17 @@
                 <h2 class="text-xl font-semibold text-gray-700 mb-4">Add Course</h2>
                 <label for="newCourseCode" class="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
                 <input type="text" id="newCourseCode" placeholder="INSY213" class="w-full p-2 border border-gray-300 rounded-lg mb-3 uppercase">
+                
                 <label for="newClassGroup" class="block text-sm font-medium text-gray-700 mb-1">Class Group</label>
-                <input type="text" id="newClassGroup" placeholder="MAIN" class="w-full p-2 border border-gray-300 rounded-lg mb-4 uppercase">
+                <select id="newClassGroup" class="w-full p-2 border border-gray-300 rounded-lg mb-4 bg-white">
+                    <option value="" disabled selected>Select Group...</option>
+                    <option value="MAIN">MAIN</option>
+                    <option value="GROUP A">GROUP A</option>
+                    <option value="GROUP B">GROUP B</option>
+                    <option value="INTER SESSION 1">INTER SESSION 1</option>
+                    <option value="INTER SESSION 2">INTER SESSION 2</option>
+                </select>
+
                 <button onclick="addCourse()" class="w-full bg-green-500 text-white p-2 rounded-lg font-semibold hover:bg-green-600 shadow-md">+ Add to List</button>
             </div>
             <div class="md:col-span-2">
@@ -38,7 +47,7 @@
 
         <div id="messageBox" class="p-4 rounded-lg text-sm hidden mb-4"></div>
         <div id="loadingIndicator" class="hidden flex justify-center items-center py-6">
-            <div class="loading-ring mr-3"></div><span class="text-green-600 font-medium">Processing request...</span>
+            <div class="loading-ring mr-3"></div><span id="loadingText" class="text-green-600 font-medium">Processing request...</span>
         </div>
 
         <div class="mt-8 mb-4 border-b pb-2 flex justify-between items-center">
@@ -106,11 +115,11 @@
             const codeInput = document.getElementById('newCourseCode');
             const groupInput = document.getElementById('newClassGroup');
             const code = codeInput.value.trim().toUpperCase();
-            const group = groupInput.value.trim().toUpperCase();
+            const group = groupInput.value;
             if (!code || !group) return;
             courseListArray.push({ course_code: code, class_group: group });
             updateCourseListUI();
-            codeInput.value = ''; groupInput.value = ''; codeInput.focus();
+            codeInput.value = ''; groupInput.selectedIndex = 0; codeInput.focus();
         }
 
         function removeCourse(index) { courseListArray.splice(index, 1); updateCourseListUI(); }
@@ -120,11 +129,20 @@
             box.textContent = msg;
             box.className = `p-4 rounded-lg text-sm mb-4 border ${type === 'success' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-red-100 border-red-300 text-red-800'}`;
             box.classList.remove('hidden');
-            setTimeout(() => box.classList.add('hidden'), 5000);
+            setTimeout(() => box.classList.add('hidden'), 8000); // Increased time to read
         }
 
         async function buildTimetable() {
-            document.getElementById('loadingIndicator').classList.remove('hidden');
+            const loading = document.getElementById('loadingIndicator');
+            const loadingText = document.getElementById('loadingText');
+            loading.classList.remove('hidden');
+            loadingText.textContent = "Connecting to database...";
+
+            // Timer to warn if it's a cold start
+            const coldStartTimer = setTimeout(() => {
+                loadingText.textContent = "Server is waking up (this can take 40s on first load)...";
+            }, 5000);
+
             try {
                 const res = await fetch(API_BASE_URL + 'timetable', {
                     method: 'POST',
@@ -132,12 +150,16 @@
                     body: JSON.stringify({ courses: courseListArray })
                 });
                 const data = await res.json();
+                clearTimeout(coldStartTimer);
                 if (data.status === 'success') {
                     renderTimetable(data.timetable);
                     showMessage(`Timetable built and sorted correctly.`, 'success');
                 } else { showMessage(data.message, "error"); }
-            } catch (e) { showMessage("Backend not reachable.", "error"); }
-            document.getElementById('loadingIndicator').classList.add('hidden');
+            } catch (e) { 
+                clearTimeout(coldStartTimer);
+                showMessage("Backend not reachable. The server might be sleeping, please try again in 10 seconds.", "error"); 
+            }
+            loading.classList.add('hidden');
         }
 
         function renderTimetable(timetable) {
@@ -157,13 +179,12 @@
             document.getElementById('downloadBtn').classList.remove('hidden');
             document.getElementById('noDataMessage').classList.add('hidden');
             
-            // FIX: Use lowercase columns to match PostgreSQL output
             const cols = ["exam_date", "start_time", "end_time", "course_title", "course_code", "class_group", "venue"];
             
             cols.forEach(c => {
                 const th = document.createElement('th');
                 th.className = 'px-6 py-3 text-left text-xs font-bold uppercase text-gray-600 bg-gray-100';
-                th.textContent = c.replace(/_/g, ' '); // Removed the bug here
+                th.textContent = c.replace(/_/g, ' ');
                 head.appendChild(th);
             });
             
@@ -184,26 +205,21 @@
             btn.disabled = true;
             document.getElementById('loadingIndicator').classList.remove('hidden');
             try {
-                const smartQuery = "SELECT * FROM exam_timetable ORDER BY exam_id ASC";
                 const res = await fetch(API_BASE_URL + 'query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: smartQuery })
+                    body: JSON.stringify({ query: "SELECT * FROM exam_timetable ORDER BY exam_id ASC" })
                 });
                 const result = await res.json();
                 if (result.status === 'success') {
                     let html = `<thead class="bg-blue-600 text-white"><tr>`;
-                    
-                    // FIX: Ensure system checks against lowercase column names
                     const hiddenCols = ["exam_id", "date_val", "time_val"];
-                    
                     result.columns.forEach(col => { 
                         if(!hiddenCols.includes(col.toLowerCase())) {
                             html += `<th class="px-4 py-2 text-left text-xs font-bold uppercase">${col.replace(/_/g, ' ')}</th>`; 
                         }
                     });
                     html += `</tr></thead><tbody class="divide-y">`;
-                    
                     result.data.forEach(row => {
                         html += `<tr>`;
                         row.forEach((cell, idx) => {
@@ -227,7 +243,7 @@
             const doc = new jsPDF('l', 'pt');
             doc.text("Personal Exam Timetable", 40, 40);
             doc.autoTable({ html: '#timetableTable', startY: 60, theme: 'grid' });
-            doc.save('Exam_Timetable.pdf');
+            doc.save('My_Exam_Timetable.pdf');
         }
     </script>
 </body>
