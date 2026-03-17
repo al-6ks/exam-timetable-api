@@ -112,7 +112,7 @@ def home():
     return send_file('index.html')
 
 if __name__ == '__main__':
-    # Use environment port for deployment, default to 5000 for local testing
+   
     port = int(os.environ.get("PORT", 5000))
     print(f"Backend running on http://127.0.0.1:{port}")
     app.run(host='0.0.0.0', port=port, debug=True)
