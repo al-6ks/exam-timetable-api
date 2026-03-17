@@ -12,17 +12,18 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
     try:
-
+        # Added connect_timeout so it doesn't hang the whole site if DB is slow
         conn = psycopg2.connect(
-    DATABASE_URL,
-    cursor_factory=RealDictCursor,
-    sslmode="require"
-    )
+            DATABASE_URL,
+            cursor_factory=RealDictCursor,
+            sslmode="require",
+            connect_timeout=10 
+        )
         return conn
     except Exception as e:
         print(f"Database Connection Error: {e}")
         return None
-
+    
 @app.route('/api/timetable', methods=['POST'])
 def build_timetable():
     data = request.json or {}
@@ -107,11 +108,9 @@ def execute_query():
         cursor.close()
         connection.close()
 
-
 @app.route('/')
 def home():
     return send_file('index.html')
-
 
 if __name__ == '__main__':
     # Use environment port for deployment, default to 5000 for local testing
