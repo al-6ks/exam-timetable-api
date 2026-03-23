@@ -7,168 +7,216 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        ueabNavy: '#1a237e',
+                        ueabGold: '#ffd700',
+                        m3Surface: '#f7f9fc',
+                        m3DarkBg: '#121212',
+                        m3DarkCard: '#1e1e1e'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .loading-ring { border: 4px solid #f3f3f3; border-top: 4px solid #10b981; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        body { font-family: 'Google Sans', sans-serif; transition: background-color 0.3s ease; }
+        .m3-card { border-radius: 28px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .loading-ring { border: 3px solid #f3f3f3; border-top: 3px solid #ffd700; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #timetableTable thead, #queryResultsTable thead { position: sticky; top: 0; z-index: 10; }
-        .text-inter { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-gray-50 text-inter min-h-screen p-4 sm:p-8">
-    <div class="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-6 md:p-10 border border-green-100">
-        <h1 class="text-3xl font-bold text-green-700 mb-2">Personal Exam Timetable Builder</h1>
-        <p class="text-gray-600 mb-6 border-b pb-4">Input your courses one-by-one, then build your final, sorted timetable.</p>
+<body class="bg-m3Surface dark:bg-m3DarkBg text-gray-900 dark:text-gray-100 min-h-screen">
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="md:col-span-1 bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">Add Course</h2>
-                <label for="newCourseCode" class="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
-                <input type="text" id="newCourseCode" placeholder="INSY213" class="w-full p-2 border border-gray-300 rounded-lg mb-3 uppercase">
-                
-                <label for="newClassGroup" class="block text-sm font-medium text-gray-700 mb-1">Class Group</label>
-                <select id="newClassGroup" class="w-full p-2 border border-gray-300 rounded-lg mb-4 bg-white">
-                    <option value="" disabled selected>Select Group...</option>
-                    <option value="MAIN">MAIN</option>
-                    <option value="GROUP A">GROUP A</option>
-                    <option value="GROUP B">GROUP B</option>
-                    <option value="INTER SESSION 1">INTER SESSION 1</option>
-                    <option value="INTER SESSION 2">INTER SESSION 2</option>
-                    <option value="Blended Online">Blended Online</option>
-                </select>
-
-                <button onclick="addCourse()" class="w-full bg-green-500 text-white p-2 rounded-lg font-semibold hover:bg-green-600 shadow-md">+ Add to List</button>
+    <header class="bg-ueabNavy dark:bg-black text-white p-4 sticky top-0 z-50 shadow-lg flex justify-between items-center rounded-b-3xl">
+        <div class="flex items-center gap-3">
+            <img src="https://ueab.ac.ke/wp-content/uploads/2021/08/cropped-UEAB-Logo-1-1.png" alt="Logo" class="h-10 w-10 object-contain">
+            <div>
+                <h1 class="text-lg font-bold">UEAB Exams</h1>
+                <p class="text-[10px] text-ueabGold uppercase tracking-widest">Timetable Builder</p>
             </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="https://icampus.ueab.ac.ke/Default" target="_blank" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-full flex items-center gap-2 transition">
+                <span>iCampus</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+            </a>
+            <button onclick="toggleDarkMode()" class="p-2 rounded-full bg-white/10 hover:bg-white/20">
+                <span id="themeIcon">🌙</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="md:col-span-1 bg-white dark:bg-m3DarkCard p-6 m3-card shadow-sm border border-gray-100 dark:border-gray-800">
+                <h2 class="text-xl font-bold mb-4 text-ueabNavy dark:text-ueabGold">Add Course</h2>
+                <div class="space-y-4">
+                    <input type="text" id="newCourseCode" placeholder="COURSE CODE (e.g. INSY213)" class="w-full p-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-ueabNavy outline-none uppercase text-sm">
+                    <select id="newClassGroup" class="w-full p-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-ueabNavy outline-none text-sm">
+                        <option value="" disabled selected>Select Group...</option>
+                        <option value="MAIN">MAIN</option>
+                        <option value="GROUP A">GROUP A</option>
+                        <option value="GROUP B">GROUP B</option>
+                        <option value="INTER SESSION 1">INTER SESSION 1</option>
+                    </select>
+                    <button onclick="addCourse()" class="w-full bg-ueabNavy text-white py-3 rounded-2xl font-bold hover:opacity-90 transition shadow-md">+ Add to List</button>
+                </div>
+            </div>
+
             <div class="md:col-span-2">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Courses (<span id="courseCount">0</span>)</h2>
-                <div id="courseList" class="max-h-48 overflow-y-auto p-3 bg-white border border-gray-200 rounded-lg shadow-inner mb-4"></div>
-                <button onclick="buildTimetable()" id="buildButton" disabled class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg disabled:opacity-50">Build Final Timetable</button>
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <h2 class="text-xl font-bold text-gray-700 dark:text-gray-300">Your List (<span id="courseCount">0</span>)</h2>
+                    <button onclick="clearList()" class="text-xs text-red-500 hover:underline">Clear All</button>
+                </div>
+                <div id="courseList" class="flex flex-wrap gap-2 mb-4"></div>
+                <button onclick="buildTimetable()" id="buildButton" disabled class="w-full bg-ueabGold text-ueabNavy p-4 rounded-3xl font-bold hover:shadow-xl transition disabled:opacity-30">Generate Final Schedule</button>
             </div>
         </div>
 
-        <div id="messageBox" class="p-4 rounded-lg text-sm hidden mb-4"></div>
-        <div id="loadingIndicator" class="hidden flex justify-center items-center py-6">
-            <div class="loading-ring mr-3"></div><span id="loadingText" class="text-green-600 font-medium">Processing request...</span>
-        </div>
+        <div id="messageBox" class="hidden p-4 rounded-2xl mb-6 text-sm text-center font-medium animate-pulse"></div>
 
-        <div class="mt-8 mb-4 border-b pb-2 flex justify-between items-center">
-            <h2 class="text-xl font-semibold text-gray-700">Your Personal Exam Timetable</h2>
-            <button id="downloadBtn" onclick="downloadPDF()" class="hidden bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 transition flex items-center gap-2">Download PDF</button>
-        </div>
-
-        <div id="resultsTableContainer" class="max-h-[40vh] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-md mb-8">
-            <table id="timetableTable" class="min-w-full divide-y divide-gray-200 hidden">
-                <thead class="bg-gray-100"><tr id="tableHeader"></tr></thead>
-                <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
-            </table>
-            <p id="noDataMessage" class="p-4 text-center text-gray-500">Add courses and build your personal view.</p>
-        </div>
-
-        <div class="mt-12 pt-6 border-t border-gray-200">
-            <div class="p-6 bg-blue-50 rounded-xl border border-blue-200">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                    <div>
-                        <h2 class="text-2xl font-bold text-blue-800">Final Exam Timetable</h2>
-                        <p class="text-blue-600 text-sm">View all scheduled exams in the database for cross-referencing.</p>
-                    </div>
-                    <button onclick="fetchMasterTimetable()" id="masterBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 shadow-md">Fetch All Exams</button>
-                </div>
-                <div id="queryResultsContainer" class="hidden">
-                    <div class="overflow-x-auto rounded-lg border border-blue-300 max-h-96 shadow-inner bg-white">
-                        <table id="queryResultsTable" class="min-w-full divide-y divide-blue-200"></table>
-                    </div>
-                </div>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-ueabNavy dark:text-white">Personalized Schedule</h2>
+            <div id="actionButtons" class="hidden flex gap-2">
+                <button onclick="downloadPDF()" class="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-bold">PDF</button>
+                <button onclick="downloadICS()" class="bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold">Add to Calendar</button>
             </div>
         </div>
-    </div>
+
+        <div id="resultsTableContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+            <div id="emptyState" class="col-span-full py-20 text-center text-gray-400">
+                <p class="text-5xl mb-4">📅</p>
+                <p>No exams generated yet.</p>
+            </div>
+        </div>
+
+        <section class="mt-16 p-8 bg-ueabNavy/5 dark:bg-white/5 rounded-[40px] border border-ueabNavy/10">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-ueabNavy dark:text-ueabGold">Full University Schedule</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Reference all exams currently in the database.</p>
+                </div>
+                <button onclick="fetchMasterTimetable()" id="masterBtn" class="bg-ueabNavy dark:bg-ueabGold dark:text-ueabNavy text-white px-8 py-3 rounded-full font-bold shadow-lg">Fetch Master List</button>
+            </div>
+            <div id="queryResultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+    </main>
 
     <script>
         const API_BASE_URL = 'https://exam-timetable-api.vercel.app/api/';
         let courseListArray = [];
+        let generatedTimetable = [];
 
-        function formatDate(str) {
-            if (!str || typeof str !== 'string') return str;
-            return str.includes(' 00:00:00') ? str.split(' ')[0] : str;
+        // 1. Dark Mode Toggle
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
         }
 
-        function saveToLocalStorage() {
-            localStorage.setItem('myExamCourses', JSON.stringify(courseListArray));
+        // 2. Clash Detection Logic
+        function checkClash(current, others) {
+            return others.some(other => 
+                current.exam_date === other.exam_date && 
+                ((current.start_time >= other.start_time && current.start_time < other.end_time) ||
+                 (other.start_time >= current.start_time && other.start_time < current.end_time))
+            );
         }
 
-        function removeCourse(index) { 
-            courseListArray.splice(index, 1); 
-            saveToLocalStorage(); 
-            updateCourseListUI(); 
-        }
-
-        function updateCourseListUI() {
-            const listDiv = document.getElementById('courseList');
-            const countSpan = document.getElementById('courseCount');
-            const buildButton = document.getElementById('buildButton');
-            listDiv.innerHTML = ''; 
-            countSpan.textContent = courseListArray.length;
-            if (courseListArray.length === 0) {
-                listDiv.innerHTML = `<p class="text-gray-500 text-sm text-center py-4">Your courses will appear here.</p>`;
-                buildButton.disabled = true;
-                return;
-            }
-            buildButton.disabled = false;
-            courseListArray.forEach((course, index) => {
-                const item = document.createElement('div');
-                item.className = 'flex justify-between items-center p-3 border-b text-sm bg-white hover:bg-gray-50 transition';
-                item.innerHTML = `<div><span class="font-bold text-gray-800">${course.course_code}</span><br><span class="text-gray-500 text-xs">Group: ${course.class_group}</span></div>
-                    <button onclick="removeCourse(${index})" class="text-red-500 hover:text-red-700">Remove</button>`;
-                listDiv.appendChild(item);
+        function renderCards(data, containerId, isMaster = false) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            data.forEach((exam, index) => {
+                const hasClash = !isMaster && checkClash(exam, data.filter((_, i) => i !== index));
+                const card = document.createElement('div');
+                card.className = `m3-card p-6 border-2 transition-all duration-300 ${hasClash ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-transparent bg-white dark:bg-m3DarkCard shadow-md'}`;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-xs font-bold px-2 py-1 rounded-md ${hasClash ? 'bg-red-500 text-white' : 'bg-ueabNavy text-white dark:bg-ueabGold dark:text-ueabNavy'}">${exam.course_code}</span>
+                        ${hasClash ? '<span class="text-[10px] text-red-600 font-black">⚠️ CLASH</span>' : ''}
+                    </div>
+                    <h3 class="text-sm font-bold mb-3 line-clamp-2 h-10">${exam.course_title}</h3>
+                    <div class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                        <div class="flex items-center gap-2"><span>📅</span> ${formatDate(exam.exam_date)}</div>
+                        <div class="flex items-center gap-2"><span>⏰</span> ${exam.start_time} - ${exam.end_time}</div>
+                        <div class="flex items-center gap-2"><span>📍</span> ${exam.venue}</div>
+                    </div>
+                `;
+                container.appendChild(card);
             });
         }
 
-        async function addCourse() {
-            const codeInput = document.getElementById('newCourseCode');
-            const groupInput = document.getElementById('newClassGroup');
-            const code = codeInput.value.trim().toUpperCase();
-            const group = groupInput.value;
+        // 3. Calendar Export (.ics)
+        function downloadICS() {
+            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//UEAB Timetable//EN\n";
+            generatedTimetable.forEach(exam => {
+                const dateClean = exam.exam_date.replace(/-/g, '');
+                const startClean = exam.start_time.replace(/:/g, '') + "00";
+                const endClean = exam.end_time.replace(/:/g, '') + "00";
+                icsContent += "BEGIN:VEVENT\n";
+                icsContent += `SUMMARY:EXAM: ${exam.course_code}\n`;
+                icsContent += `DTSTART:${dateClean}T${startClean}\n`;
+                icsContent += `DTEND:${dateClean}T${endClean}\n`;
+                icsContent += `LOCATION:${exam.venue}\n`;
+                icsContent += `DESCRIPTION:Title: ${exam.course_title}\n`;
+                icsContent += "END:VEVENT\n";
+            });
+            icsContent += "END:VCALENDAR";
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'UEAB_Exams.ics';
+            a.click();
+        }
+
+        // 4. Enhanced PDF Export
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
             
-            if (!code || !group) {
-                showMessage("Please enter a course code and select a group.", "error");
-                return;
-            }
+            // Header
+            doc.setFillColor(26, 35, 126); // Navy
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.text("Personal Exam Schedule", 15, 20);
+            doc.setFontSize(10);
+            doc.setTextColor(255, 215, 0); // Gold
+            doc.text("University of Eastern Africa, Baraton", 15, 28);
 
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.remove('hidden');
+            const tableData = generatedTimetable.map(e => [
+                formatDate(e.exam_date), 
+                `${e.start_time} - ${e.end_time}`, 
+                e.course_code, 
+                e.course_title, 
+                e.venue
+            ]);
 
-            try {
-                const res = await fetch(API_BASE_URL + 'check', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ course_code: code, class_group: group })
-                });
-                const data = await res.json();
-                
-                if (data.status === 'exists') {
-                    courseListArray.push({ course_code: code, class_group: group });
-                    saveToLocalStorage();
-                    updateCourseListUI();
-                    codeInput.value = ''; groupInput.selectedIndex = 0;
-                    showMessage(`${code} added!`, "success");
-                } else {
-                    showMessage(data.message || "Course not found.", "error");
-                }
-            } catch (e) {
-                showMessage("Server connection failed. Try again in a few seconds.", "error");
-            } finally {
-                loading.classList.add('hidden');
-            }
+            doc.autoTable({
+                startY: 50,
+                head: [['Date', 'Time', 'Code', 'Course Title', 'Venue']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [26, 35, 126] },
+                alternateRowStyles: { fillColor: [240, 240, 240] },
+                margin: { left: 15, right: 15 }
+            });
+
+            doc.save('UEAB_Official_Timetable.pdf');
         }
 
-        function showMessage(msg, type) {
-            const box = document.getElementById('messageBox');
-            box.textContent = msg;
-            box.className = `p-4 rounded-lg text-sm mb-4 border ${type === 'success' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-red-100 border-red-300 text-red-800'}`;
-            box.classList.remove('hidden');
-            setTimeout(() => box.classList.add('hidden'), 6000);
-        }
-
+        // Existing functions with UI updates
         async function buildTimetable() {
-            document.getElementById('loadingIndicator').classList.remove('hidden');
             try {
                 const res = await fetch(API_BASE_URL + 'timetable', {
                     method: 'POST',
@@ -177,101 +225,89 @@
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
-                    renderTimetable(data.timetable);
-                } else { showMessage(data.message, "error"); }
-            } catch (e) { showMessage("Error building timetable.", "error"); }
-            document.getElementById('loadingIndicator').classList.add('hidden');
-        }
-
-        function renderTimetable(timetable) {
-            const table = document.getElementById('timetableTable');
-            const body = document.getElementById('tableBody');
-            const head = document.getElementById('tableHeader');
-            body.innerHTML = ''; head.innerHTML = '';
-            
-            if (!timetable || timetable.length === 0) {
-                table.classList.add('hidden');
-                document.getElementById('downloadBtn').classList.add('hidden');
-                document.getElementById('noDataMessage').classList.remove('hidden');
-                return;
-            }
-            
-            table.classList.remove('hidden');
-            document.getElementById('downloadBtn').classList.remove('hidden');
-            document.getElementById('noDataMessage').classList.add('hidden');
-            
-            const cols = ["exam_date", "start_time", "end_time", "course_title", "course_code", "class_group", "venue"];
-            cols.forEach(c => {
-                const th = document.createElement('th');
-                th.className = 'px-6 py-3 text-left text-xs font-bold uppercase text-gray-600 bg-gray-100';
-                th.textContent = c.replace(/_/g, ' ');
-                head.appendChild(th);
-            });
-            
-            timetable.forEach(row => {
-                const tr = document.createElement('tr');
-                cols.forEach(c => {
-                    const td = document.createElement('td');
-                    td.className = 'px-6 py-4 text-sm text-gray-800';
-                    td.textContent = (c === "exam_date") ? formatDate(row[c]) : row[c];
-                    tr.appendChild(td);
-                });
-                body.appendChild(tr);
-            });
+                    generatedTimetable = data.timetable;
+                    document.getElementById('emptyState').classList.add('hidden');
+                    document.getElementById('actionButtons').classList.remove('hidden');
+                    renderCards(data.timetable, 'resultsTableContainer');
+                }
+            } catch (e) { showMessage("Fetch failed.", "error"); }
         }
 
         async function fetchMasterTimetable() {
             const btn = document.getElementById('masterBtn');
-            btn.disabled = true;
-            document.getElementById('loadingIndicator').classList.remove('hidden');
+            btn.innerHTML = '<div class="loading-ring"></div>';
             try {
                 const res = await fetch(API_BASE_URL + 'query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: "SELECT * FROM exam_timetable ORDER BY exam_id ASC" })
+                    body: JSON.stringify({ query: "SELECT * FROM exam_timetable ORDER BY exam_date ASC" })
                 });
                 const result = await res.json();
                 if (result.status === 'success') {
-                    let html = `<thead class="bg-blue-600 text-white"><tr>`;
-                    const hiddenCols = ["exam_id", "date_val", "time_val"];
-                    result.columns.forEach(col => { 
-                        if(!hiddenCols.includes(col.toLowerCase())) {
-                            html += `<th class="px-4 py-2 text-left text-xs font-bold uppercase">${col.replace(/_/g, ' ')}</th>`; 
-                        }
+                    // Mapping dynamic SQL array to object structure
+                    const formatted = result.data.map(row => {
+                        let obj = {};
+                        result.columns.forEach((col, idx) => obj[col.toLowerCase()] = row[idx]);
+                        return obj;
                     });
-                    html += `</tr></thead><tbody class="divide-y">`;
-                    result.data.forEach(row => {
-                        html += `<tr>`;
-                        row.forEach((cell, idx) => {
-                            const colName = result.columns[idx];
-                            if(!hiddenCols.includes(colName.toLowerCase())) {
-                                html += `<td class="px-4 py-3 text-sm text-gray-700">${(colName.toLowerCase() === "exam_date") ? formatDate(cell) : (cell || '-')}</td>`;
-                            }
-                        });
-                        html += `</tr>`;
-                    });
-                    document.getElementById('queryResultsTable').innerHTML = html + `</tbody>`;
-                    document.getElementById('queryResultsContainer').classList.remove('hidden');
+                    renderCards(formatted, 'queryResultsContainer', true);
                 }
-            } catch (e) { showMessage("Error fetching master list.", "error"); }
-            btn.disabled = false;
-            document.getElementById('loadingIndicator').classList.add('hidden');
+            } catch (e) { console.error(e); }
+            btn.innerHTML = 'Fetch Master List';
         }
 
-        function downloadPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'pt');
-            doc.text("Personal Exam Timetable", 40, 40);
-            doc.autoTable({ html: '#timetableTable', startY: 60, theme: 'grid' });
-            doc.save('My_Exam_Timetable.pdf');
+        function formatDate(str) { return str ? str.split(' ')[0] : '-'; }
+        
+        function updateCourseListUI() {
+            const listDiv = document.getElementById('courseList');
+            const buildBtn = document.getElementById('buildButton');
+            listDiv.innerHTML = '';
+            document.getElementById('courseCount').textContent = courseListArray.length;
+            buildBtn.disabled = courseListArray.length === 0;
+
+            courseListArray.forEach((course, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'bg-ueabNavy/10 dark:bg-ueabGold/20 text-ueabNavy dark:text-ueabGold px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2';
+                chip.innerHTML = `${course.course_code} <button onclick="removeCourse(${index})" class="hover:text-red-500">×</button>`;
+                listDiv.appendChild(chip);
+            });
+        }
+
+        function removeCourse(i) { courseListArray.splice(i, 1); saveToLocalStorage(); updateCourseListUI(); }
+        function clearList() { courseListArray = []; saveToLocalStorage(); updateCourseListUI(); }
+        function saveToLocalStorage() { localStorage.setItem('myExamCourses', JSON.stringify(courseListArray)); }
+
+        async function addCourse() {
+            const code = document.getElementById('newCourseCode').value.trim().toUpperCase();
+            const group = document.getElementById('newClassGroup').value;
+            if(!code || !group) return;
+            try {
+                const res = await fetch(API_BASE_URL + 'check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ course_code: code, class_group: group })
+                });
+                const data = await res.json();
+                if (data.status === 'exists') {
+                    courseListArray.push({ course_code: code, class_group: group });
+                    saveToLocalStorage(); updateCourseListUI();
+                    document.getElementById('newCourseCode').value = '';
+                } else { showMessage("Course not found in system.", "error"); }
+            } catch (e) { showMessage("Connection error.", "error"); }
+        }
+
+        function showMessage(msg, type) {
+            const box = document.getElementById('messageBox');
+            box.textContent = msg;
+            box.className = `p-4 rounded-2xl mb-6 text-sm text-center font-bold ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 4000);
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             const saved = localStorage.getItem('myExamCourses');
-            if (saved) {
-                courseListArray = JSON.parse(saved);
-                updateCourseListUI();
-            }
+            if (saved) { courseListArray = JSON.parse(saved); updateCourseListUI(); }
+            if (localStorage.getItem('theme') === 'dark') toggleDarkMode();
         });
     </script>
 </body>
