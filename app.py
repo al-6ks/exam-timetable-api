@@ -5,14 +5,12 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 app = Flask(__name__)
-
 CORS(app)
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
     try:
-       
         conn = psycopg2.connect(
             DATABASE_URL,
             cursor_factory=RealDictCursor,
@@ -23,7 +21,7 @@ def get_db_connection():
     except Exception as e:
         print(f"Database Connection Error: {e}")
         return None
-    
+
 @app.route('/api/timetable', methods=['POST'])
 def build_timetable():
     data = request.json or {}
@@ -41,11 +39,9 @@ def build_timetable():
         all_results = []
         
         for course in courses_to_fetch:
-            # Clean inputs
             code = str(course.get('course_code', '')).strip().upper()
             group = str(course.get('class_group', '')).strip().upper()
             
-            # PostgreSQL query
             query = """
                 SELECT exam_id, course_code, course_title, class_group, exam_date, start_time, end_time, venue 
                 FROM exam_timetable 
@@ -54,13 +50,11 @@ def build_timetable():
             cursor.execute(query, (code, group))
             all_results.extend(cursor.fetchall())
 
-        # Sort by exam_id (handling cases where id might be string or int)
         all_results.sort(key=lambda x: int(x['exam_id']) if x['exam_id'] is not None else 0)
-
 
         for res in all_results:
             for key, value in res.items():
-                if hasattr(value, 'isoformat'): # Handles Date, Time, and Datetime objects
+                if hasattr(value, 'isoformat'):
                     res[key] = str(value)
 
         return jsonify({
@@ -69,7 +63,6 @@ def build_timetable():
             "timetable": all_results
         })
     except Exception as e:
-        print(f"Query Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         cursor.close()
@@ -80,7 +73,6 @@ def execute_query():
     data = request.get_json() or {}
     raw_query = data.get('query', '').strip()
 
-    # Simple logic to add ordering if missing
     if "FROM exam_timetable" in raw_query.lower() and "order by" not in raw_query.lower():
         raw_query = "SELECT * FROM exam_timetable ORDER BY exam_id ASC"
 
@@ -120,7 +112,6 @@ def check_course():
     
     try:
         cursor = connection.cursor()
-        # Query just to check if at least one record exists
         query = "SELECT 1 FROM exam_timetable WHERE UPPER(course_code) = %s AND UPPER(class_group) = %s LIMIT 1"
         cursor.execute(query, (code, group))
         exists = cursor.fetchone()
@@ -130,7 +121,6 @@ def check_course():
         else:
             return jsonify({"status": "missing", "message": f"Wait! {code} for {group} is not in the official timetable."})
     except Exception as e:
-        print(f"Check Error: {e}")
         return jsonify({"status": "error", "message": "Failed to verify course."}), 500
     finally:
         cursor.close()
@@ -141,7 +131,5 @@ def home():
     return send_file('index.html')
 
 if __name__ == '__main__':
-   
     port = int(os.environ.get("PORT", 5000))
-    print(f"Backend running on http://127.0.0.1:{port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port)
