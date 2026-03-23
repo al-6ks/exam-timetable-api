@@ -108,7 +108,7 @@ def execute_query():
         cursor.close()
         connection.close()
 
-    @app.route('/api/check', methods=['POST'])
+@app.route('/api/check', methods=['POST'])
 def check_course():
     data = request.json or {}
     code = str(data.get('course_code', '')).strip().upper()
