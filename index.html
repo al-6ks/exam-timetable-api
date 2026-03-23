@@ -12,7 +12,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #timetableTable thead, #queryResultsTable thead { position: sticky; top: 0; z-index: 10; }
         .text-inter { font-family: 'Inter', sans-serif; }
-        #courseList { min-height: 100px; }
     </style>
 </head>
 <body class="bg-gray-50 text-inter min-h-screen p-4 sm:p-8">
@@ -89,14 +88,15 @@
             if (!str || typeof str !== 'string') return str;
             return str.includes(' 00:00:00') ? str.split(' ')[0] : str;
         }
+
         function saveToLocalStorage() {
-        localStorage.setItem('myExamCourses', JSON.stringify(courseListArray));
+            localStorage.setItem('myExamCourses', JSON.stringify(courseListArray));
         }
 
         function removeCourse(index) { 
-         courseListArray.splice(index, 1); 
-        saveToLocalStorage(); 
-        updateCourseListUI(); 
+            courseListArray.splice(index, 1); 
+            saveToLocalStorage(); 
+            updateCourseListUI(); 
         }
 
         function updateCourseListUI() {
@@ -120,7 +120,7 @@
             });
         }
 
-       async function addCourse() {
+        async function addCourse() {
             const codeInput = document.getElementById('newCourseCode');
             const groupInput = document.getElementById('newClassGroup');
             const code = codeInput.value.trim().toUpperCase();
@@ -131,11 +131,8 @@
                 return;
             }
 
-            // Show loading spinner while checking the database
             const loading = document.getElementById('loadingIndicator');
-            const loadingText = document.getElementById('loadingText');
             loading.classList.remove('hidden');
-            loadingText.textContent = "Verifying course...";
 
             try {
                 const res = await fetch(API_BASE_URL + 'check', {
@@ -146,46 +143,31 @@
                 const data = await res.json();
                 
                 if (data.status === 'exists') {
-                    // It exists! Add it to the array, save, and update UI
                     courseListArray.push({ course_code: code, class_group: group });
                     saveToLocalStorage();
                     updateCourseListUI();
-                    codeInput.value = ''; groupInput.selectedIndex = 0; codeInput.focus();
-                    showMessage(`${code} added successfully!`, "success");
-                } else if (data.status === 'missing') {
-                    // It doesn't exist, show the warning
-                    showMessage(data.message, "error");
+                    codeInput.value = ''; groupInput.selectedIndex = 0;
+                    showMessage(`${code} added!`, "success");
                 } else {
-                    showMessage(data.message || "An error occurred verifying the course.", "error");
+                    showMessage(data.message || "Course not found.", "error");
                 }
             } catch (e) {
-                showMessage("Could not connect to verify course. The server might be waking up.", "error");
+                showMessage("Server connection failed. Try again in a few seconds.", "error");
             } finally {
-                loading.classList.add('hidden'); // Hide spinner when done
+                loading.classList.add('hidden');
             }
         }
-
-        function removeCourse(index) { courseListArray.splice(index, 1); updateCourseListUI(); }
 
         function showMessage(msg, type) {
             const box = document.getElementById('messageBox');
             box.textContent = msg;
             box.className = `p-4 rounded-lg text-sm mb-4 border ${type === 'success' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-red-100 border-red-300 text-red-800'}`;
             box.classList.remove('hidden');
-            setTimeout(() => box.classList.add('hidden'), 8000); // Increased time to read
+            setTimeout(() => box.classList.add('hidden'), 6000);
         }
 
         async function buildTimetable() {
-            const loading = document.getElementById('loadingIndicator');
-            const loadingText = document.getElementById('loadingText');
-            loading.classList.remove('hidden');
-            loadingText.textContent = "Connecting to database...";
-
-            // Timer to warn if it's a cold start
-            const coldStartTimer = setTimeout(() => {
-                loadingText.textContent = "Server is waking up (this can take 40s on first load)...";
-            }, 5000);
-
+            document.getElementById('loadingIndicator').classList.remove('hidden');
             try {
                 const res = await fetch(API_BASE_URL + 'timetable', {
                     method: 'POST',
@@ -193,16 +175,11 @@
                     body: JSON.stringify({ courses: courseListArray })
                 });
                 const data = await res.json();
-                clearTimeout(coldStartTimer);
                 if (data.status === 'success') {
                     renderTimetable(data.timetable);
-                    showMessage(`Timetable built and sorted correctly.`, 'success');
                 } else { showMessage(data.message, "error"); }
-            } catch (e) { 
-                clearTimeout(coldStartTimer);
-                showMessage("Backend not reachable. The server might be sleeping, please try again in 10 seconds.", "error"); 
-            }
-            loading.classList.add('hidden');
+            } catch (e) { showMessage("Error building timetable.", "error"); }
+            document.getElementById('loadingIndicator').classList.add('hidden');
         }
 
         function renderTimetable(timetable) {
@@ -223,7 +200,6 @@
             document.getElementById('noDataMessage').classList.add('hidden');
             
             const cols = ["exam_date", "start_time", "end_time", "course_title", "course_code", "class_group", "venue"];
-            
             cols.forEach(c => {
                 const th = document.createElement('th');
                 th.className = 'px-6 py-3 text-left text-xs font-bold uppercase text-gray-600 bg-gray-100';
@@ -288,14 +264,14 @@
             doc.autoTable({ html: '#timetableTable', startY: 60, theme: 'grid' });
             doc.save('My_Exam_Timetable.pdf');
         }
-        window.addEventListener('DOMContentLoaded', () => {
-        const saved = localStorage.getItem('myExamCourses');
-        if (saved) {
-        courseListArray = JSON.parse(saved);
-        updateCourseListUI();
-        }
-        });
 
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('myExamCourses');
+            if (saved) {
+                courseListArray = JSON.parse(saved);
+                updateCourseListUI();
+            }
+        });
     </script>
 </body>
 </html>
