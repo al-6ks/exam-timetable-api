@@ -56,7 +56,8 @@ def build_timetable():
 
         # Sort by exam_id (handling cases where id might be string or int)
         all_results.sort(key=lambda x: int(x['exam_id']) if x['exam_id'] is not None else 0)
-
+
+
         for res in all_results:
             for key, value in res.items():
                 if hasattr(value, 'isoformat'): # Handles Date, Time, and Datetime objects
@@ -103,6 +104,34 @@ def execute_query():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+    @app.route('/api/check', methods=['POST'])
+def check_course():
+    data = request.json or {}
+    code = str(data.get('course_code', '')).strip().upper()
+    group = str(data.get('class_group', '')).strip().upper()
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"status": "error", "message": "Database connection failed."}), 503
+    
+    try:
+        cursor = connection.cursor()
+        # Query just to check if at least one record exists
+        query = "SELECT 1 FROM exam_timetable WHERE UPPER(course_code) = %s AND UPPER(class_group) = %s LIMIT 1"
+        cursor.execute(query, (code, group))
+        exists = cursor.fetchone()
+        
+        if exists:
+            return jsonify({"status": "exists"})
+        else:
+            return jsonify({"status": "missing", "message": f"Wait! {code} for {group} is not in the official timetable."})
+    except Exception as e:
+        print(f"Check Error: {e}")
+        return jsonify({"status": "error", "message": "Failed to verify course."}), 500
     finally:
         cursor.close()
         connection.close()
