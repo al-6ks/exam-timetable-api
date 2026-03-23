@@ -89,6 +89,15 @@
             if (!str || typeof str !== 'string') return str;
             return str.includes(' 00:00:00') ? str.split(' ')[0] : str;
         }
+        function saveToLocalStorage() {
+        localStorage.setItem('myExamCourses', JSON.stringify(courseListArray));
+        }
+
+        function removeCourse(index) { 
+         courseListArray.splice(index, 1); 
+        saveToLocalStorage(); 
+        updateCourseListUI(); 
+        }
 
         function updateCourseListUI() {
             const listDiv = document.getElementById('courseList');
@@ -118,6 +127,7 @@
             const group = groupInput.value;
             if (!code || !group) return;
             courseListArray.push({ course_code: code, class_group: group });
+            saveToLocalStorage();
             updateCourseListUI();
             codeInput.value = ''; groupInput.selectedIndex = 0; codeInput.focus();
         }
@@ -245,6 +255,14 @@
             doc.autoTable({ html: '#timetableTable', startY: 60, theme: 'grid' });
             doc.save('My_Exam_Timetable.pdf');
         }
+        window.addEventListener('DOMContentLoaded', () => {
+        const saved = localStorage.getItem('myExamCourses');
+        if (saved) {
+        courseListArray = JSON.parse(saved);
+        updateCourseListUI();
+        }
+        });
+
     </script>
 </body>
 </html>
