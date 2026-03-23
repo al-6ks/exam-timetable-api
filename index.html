@@ -120,16 +120,49 @@
             });
         }
 
-        function addCourse() {
+       async function addCourse() {
             const codeInput = document.getElementById('newCourseCode');
             const groupInput = document.getElementById('newClassGroup');
             const code = codeInput.value.trim().toUpperCase();
             const group = groupInput.value;
-            if (!code || !group) return;
-            courseListArray.push({ course_code: code, class_group: group });
-            saveToLocalStorage();
-            updateCourseListUI();
-            codeInput.value = ''; groupInput.selectedIndex = 0; codeInput.focus();
+            
+            if (!code || !group) {
+                showMessage("Please enter a course code and select a group.", "error");
+                return;
+            }
+
+            // Show loading spinner while checking the database
+            const loading = document.getElementById('loadingIndicator');
+            const loadingText = document.getElementById('loadingText');
+            loading.classList.remove('hidden');
+            loadingText.textContent = "Verifying course...";
+
+            try {
+                const res = await fetch(API_BASE_URL + 'check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ course_code: code, class_group: group })
+                });
+                const data = await res.json();
+                
+                if (data.status === 'exists') {
+                    // It exists! Add it to the array, save, and update UI
+                    courseListArray.push({ course_code: code, class_group: group });
+                    saveToLocalStorage();
+                    updateCourseListUI();
+                    codeInput.value = ''; groupInput.selectedIndex = 0; codeInput.focus();
+                    showMessage(`${code} added successfully!`, "success");
+                } else if (data.status === 'missing') {
+                    // It doesn't exist, show the warning
+                    showMessage(data.message, "error");
+                } else {
+                    showMessage(data.message || "An error occurred verifying the course.", "error");
+                }
+            } catch (e) {
+                showMessage("Could not connect to verify course. The server might be waking up.", "error");
+            } finally {
+                loading.classList.add('hidden'); // Hide spinner when done
+            }
         }
 
         function removeCourse(index) { courseListArray.splice(index, 1); updateCourseListUI(); }
