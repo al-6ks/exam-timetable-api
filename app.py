@@ -1,8 +1,8 @@
 import os
-import psycopg2-binary
+import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify, send_file
-from flask import CORS
+from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
@@ -33,15 +33,15 @@ def build_timetable():
     connection = get_db_connection()
     if not connection:
         return jsonify({"status": "error", "message": "Database connection failed."}), 503
-    
+
     try:
         cursor = connection.cursor()
         all_results = []
-        
+
         for course in courses_to_fetch:
             code = str(course.get('course_code', '')).strip().upper()
             group = str(course.get('class_group', '')).strip().upper()
-            
+
             query = """
                 SELECT exam_id, course_code, course_title, class_group, exam_date, start_time, end_time, venue 
                 FROM exam_timetable 
@@ -65,29 +65,34 @@ def build_timetable():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
-        cursor.close()
-        connection.close()
+        if 'cursor' in locals():
+            cursor.close()
+        if connection:
+            connection.close()
 
 @app.route('/api/query', methods=['POST'])
 def execute_query():
     data = request.get_json() or {}
     raw_query = data.get('query', '').strip()
 
-    if "FROM exam_timetable" in raw_query.lower() and "order by" not in raw_query.lower():
+    if "from exam_timetable" in raw_query.lower() and "order by" not in raw_query.lower():
         raw_query = "SELECT * FROM exam_timetable ORDER BY exam_id ASC"
 
     connection = get_db_connection()
     if not connection: 
         return jsonify({"status": "error", "message": "DB error"}), 503
-        
+
     try:
         cursor = connection.cursor()
         cursor.execute(raw_query)
-        
+
         columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
-        
-        json_rows = [[str(item) if item is not None else None for item in row.values()] for row in rows]
+
+        json_rows = [
+            [str(item) if item is not None else None for item in row.values()]
+            for row in rows
+        ]
 
         return jsonify({
             "status": "success",
@@ -97,8 +102,10 @@ def execute_query():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
-        cursor.close()
-        connection.close()
+        if 'cursor' in locals():
+            cursor.close()
+        if connection:
+            connection.close()
 
 @app.route('/api/check', methods=['POST'])
 def check_course():
@@ -109,22 +116,31 @@ def check_course():
     connection = get_db_connection()
     if not connection:
         return jsonify({"status": "error", "message": "Database connection failed."}), 503
-    
+
     try:
         cursor = connection.cursor()
-        query = "SELECT 1 FROM exam_timetable WHERE UPPER(course_code) = %s AND UPPER(class_group) = %s LIMIT 1"
+        query = """
+            SELECT 1 FROM exam_timetable 
+            WHERE UPPER(course_code) = %s AND UPPER(class_group) = %s 
+            LIMIT 1
+        """
         cursor.execute(query, (code, group))
         exists = cursor.fetchone()
-        
+
         if exists:
             return jsonify({"status": "exists"})
         else:
-            return jsonify({"status": "missing", "message": f"Wait! {code} for {group} is not in the official timetable."})
-    except Exception as e:
+            return jsonify({
+                "status": "missing",
+                "message": f"Wait! {code} for {group} is not in the official timetable."
+            })
+    except Exception:
         return jsonify({"status": "error", "message": "Failed to verify course."}), 500
     finally:
-        cursor.close()
-        connection.close()
+        if 'cursor' in locals():
+            cursor.close()
+        if connection:
+            connection.close()
 
 @app.route('/')
 def home():
